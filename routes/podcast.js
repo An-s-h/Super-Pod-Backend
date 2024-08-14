@@ -48,24 +48,30 @@ router.post('/add-podcast', authMiddleware, async (req, res) => {
   }
 });
 
-// Get all podcasts
 router.get('/get-podcast', async (req, res) => {
   try {
+    const { page = 1, limit = 4 } = req.query;
     const podcasts = await Podcast.find()
       .populate('category')
-      .sort({ createdAt: -1 });
-    return res.status(200).json({ data: podcasts });
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(Number(limit));
+    
+    const totalPodcasts = await Podcast.countDocuments(); // Get the total number of podcasts
+
+    return res.status(200).json({ data: podcasts, total: totalPodcasts });
   } catch (error) {
     console.error('Error fetching podcasts:', error.message);
     return res.status(500).json({ msg: 'Failed to get podcasts', error: error.message });
   }
 });
 
-// Get user podcasts
+
 router.get('/get-user-podcasts', authMiddleware, async (req, res) => {
   try {
     const { user } = req;
     const userId = user._id;
+    const { page = 1, limit = 10 } = req.query; // Get pagination parameters
 
     const data = await User.findById(userId)
       .populate({
@@ -73,20 +79,26 @@ router.get('/get-user-podcasts', authMiddleware, async (req, res) => {
         populate: { path: 'category' },
       })
       .select('-password');
-    console.log('User podcasts data:', data);
-
+    
     if (data && data.podcasts) {
-      data.podcasts.sort(
-        (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
-      );
+      data.podcasts.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+      // Paginate the podcasts
+      const total = data.podcasts.length;
+      const startIndex = (page - 1) * limit;
+      const endIndex = page * limit;
+      const paginatedPodcasts = data.podcasts.slice(startIndex, endIndex);
+
+      return res.status(200).json({ data: paginatedPodcasts, total });
     }
 
-    return res.status(200).json({ data: data.podcasts });
+    return res.status(200).json({ data: [], total: 0 });
   } catch (error) {
     console.error('Failed to get user podcasts:', error.message);
     return res.status(500).json({ msg: 'Failed to get user podcasts', error: error.message });
   }
 });
+
 
 // Get podcast by ID
 router.get('/get-podcast/:id', async (req, res) => {
