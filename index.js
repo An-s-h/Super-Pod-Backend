@@ -11,10 +11,14 @@ require("./config/conn");
 
 app.use(
   cors({
-    origin: [process.env.FRONTEND_URL || "https://super-pod.vercel.app"],
+    origin: [
+      process.env.FRONTEND_URL || "https://super-pod.vercel.app", 
+      "http://localhost:5173"
+    ],
     credentials: true,
   })
 );
+
 app.use(express.json());
 app.use(cookieParser());
 
